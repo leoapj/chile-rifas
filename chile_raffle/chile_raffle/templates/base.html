@@ -1,0 +1,26 @@
+{% load static %}<!DOCTYPE html>
+<html lang="es-CL">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Chile Raffle — Rifas online{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@400;500;600&family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'css/styles.css' %}">
+  {% block extra_head %}{% endblock %}
+</head>
+<body>
+  <header class="site-header">
+    <div class="container">
+      <a href="{% url 'home' %}" class="brand">Chile Raffle <span>#rifas</span></a>
+      <nav><a href="{% url 'home' %}" class="btn btn--ghost">Ver rifas</a></nav>
+    </div>
+  </header>
+
+  <main style="flex: 1;">{% block content %}{% endblock %}</main>
+
+  <footer class="site-footer">
+    <div class="container">Chile Raffle — precios en pesos chilenos (CLP). Pago por transferencia bancaria.</div>
+  </footer>
+</body>
+</html>

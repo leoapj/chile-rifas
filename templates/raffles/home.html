@@ -1,0 +1,174 @@
+{% extends "base.html" %}
+{% load clp %}
+
+{% block content %}
+<section class="landing-hero">
+  <div class="container landing-hero__grid">
+    <div class="landing-hero__copy">
+      <p class="landing-hero__kicker">Rifas online en Chile</p>
+      <h1>Elige tu número.<br>Transfiere.<br>Y a esperar el sorteo.</h1>
+      <p class="lead">
+        Ves en tiempo real qué números están libres, reservas los tuyos y pagas con una
+        transferencia desde la app de tu banco. Sin cuentas, sin tarjetas, sin complicaciones.
+      </p>
+      <div class="landing-hero__actions">
+        <a href="#rifas" class="btn btn--gold btn--lg">Ver rifas activas</a>
+        <a href="#como-funciona" class="btn btn--ghost btn--lg">Cómo comprar</a>
+      </div>
+      {% if numbers_sold %}
+        <p class="landing-hero__proof"><strong>{{ numbers_sold }}</strong> números ya vendidos en las rifas activas</p>
+      {% endif %}
+    </div>
+
+    {% if featured %}
+    <a href="{% url 'raffle-detail-page' featured.slug %}" class="big-ticket" aria-label="Ver la rifa {{ featured.name }}">
+      <span class="big-ticket__flag">Próximo sorteo · {{ featured.draw_date|date:"d \d\e F" }}
+        <b class="big-ticket__count" data-draw="{{ featured.draw_date|date:'c' }}"></b></span>
+      {% if featured.image %}
+        <div class="big-ticket__media"><img src="{{ featured.image.url }}" alt="" class="big-ticket__image" loading="eager"></div>
+      {% endif %}
+      <div class="big-ticket__body">
+        <h2>{{ featured.name }}</h2>
+        {% if featured.organizer_name %}<p class="organizer">Organiza: {{ featured.organizer_name }}</p>{% endif %}
+        <div class="mini-board" aria-hidden="true">
+          {% for c in featured_cells %}<i class="mini-board__cell is-{{ c.status }}">{{ c.number }}</i>{% endfor %}
+        </div>
+        <div class="big-ticket__legend">
+          <span><i class="mini-board__cell is-available"></i> libre</span>
+          <span><i class="mini-board__cell is-reserved"></i> reservado</span>
+          <span><i class="mini-board__cell is-paid"></i> vendido</span>
+        </div>
+      </div>
+      <div class="big-ticket__perforation"></div>
+      <div class="big-ticket__footer">
+        <div class="big-ticket__price">${{ featured.price_clp|clp }}<small>por número</small></div>
+        <div class="big-ticket__left"><strong>{{ featured.available }}</strong><small>libres de {{ featured.total_tickets }}</small></div>
+        <span class="btn btn--primary">Elegir números</span>
+      </div>
+    </a>
+    {% endif %}
+  </div>
+</section>
+
+<section class="container section" id="rifas">
+  <div class="section-head">
+    <h2>Rifas activas</h2>
+    {% if raffles %}<p>{{ raffles|length }} {% if raffles|length == 1 %}rifa disponible{% else %}rifas disponibles{% endif %} ahora</p>{% endif %}
+  </div>
+
+  {% if raffles %}
+  <div class="ticket-grid">
+    {% for raffle in raffles %}
+    <a href="{% url 'raffle-detail-page' raffle.slug %}" class="ticket-stub">
+      {% if raffle.almost_out %}<span class="ticket-stub__ribbon">¡Quedan pocos!</span>{% endif %}
+      {% if raffle.image %}
+        <img src="{{ raffle.image.url }}" alt="{{ raffle.name }}" class="ticket-stub__image" loading="lazy">
+      {% else %}
+        <div class="ticket-stub__image"></div>
+      {% endif %}
+      <div class="ticket-stub__body">
+        <span class="tag">{{ raffle.available }} números libres</span>
+        <h3>{{ raffle.name }}</h3>
+        {% if raffle.organizer_name %}<p class="organizer">Organiza: {{ raffle.organizer_name }}</p>{% endif %}
+        <div class="ticket-stub__meta">
+          Sorteo el {{ raffle.draw_date|date:"d M Y, H:i" }}
+          {% with d=raffle.days_until_draw %}· {% if d == 0 %}¡es hoy!{% elif d == 1 %}falta 1 día{% else %}faltan {{ d }} días{% endif %}{% endwith %}
+        </div>
+        <div class="ticket-stub__progress"><div class="ticket-stub__progress-bar" style="width: {{ raffle.percent }}%;"></div></div>
+        <div class="ticket-stub__meta">{{ raffle.percent }}% vendido</div>
+      </div>
+      <div class="ticket-stub__perforation"></div>
+      <div class="ticket-stub__footer">
+        <div class="ticket-stub__price">${{ raffle.price_clp|clp }}<small>CLP por número</small></div>
+        <span class="btn btn--primary">Ver números</span>
+      </div>
+    </a>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="empty-state">
+    <h3>Aún no hay rifas activas</h3>
+    <p>Vuelve pronto. Si quieres publicar la tuya, escríbenos más abajo.</p>
+  </div>
+  {% endif %}
+</section>
+
+<section class="container section" id="como-funciona">
+  <div class="section-head"><h2>Cómo comprar</h2><p>Toma menos de dos minutos</p></div>
+  <ol class="steps">
+    <li><h3>Elige tus números</h3><p>Toca los que quieras en el tablero. Los reservados y vendidos aparecen marcados.</p></li>
+    <li><h3>Reserva y transfiere</h3><p>Te mostramos la cuenta, el monto exacto y un código único para poner en el comentario de la transferencia.</p></li>
+    <li><h3>Avísanos</h3><p>Ingresa el N° de operación de tu comprobante. Tus números quedan guardados mientras verificamos.</p></li>
+    <li><h3>Listo, estás dentro</h3><p>Cuando confirmamos el abono, tus números pasan a "vendido" y quedas participando en el sorteo.</p></li>
+  </ol>
+</section>
+
+<section class="container section">
+  <ul class="trust">
+    <li><strong>Código único por compra</strong><span>Cada pago tiene su propio código, así nunca se pierde una transferencia.</span></li>
+    <li><strong>Reserva sin apuro</strong><span>Tus números quedan apartados mientras haces la transferencia.</span></li>
+    <li><strong>Tablero en vivo</strong><span>Ves al instante qué números siguen libres.</span></li>
+  </ul>
+</section>
+
+{% if winners %}
+<section class="container section" id="ganadores">
+  <div class="section-head"><h2>Sorteos realizados</h2><p>Números ganadores recientes</p></div>
+  <ul class="winners">
+    {% for w in winners %}
+    <li><span class="winners__num">#{{ w.winner_ticket.number }}</span><span><strong>{{ w.name }}</strong><br>Sorteo del {{ w.draw_date|date:"d \d\e F Y" }}</span></li>
+    {% endfor %}
+  </ul>
+</section>
+{% endif %}
+
+<section class="container section" id="preguntas">
+  <div class="section-head"><h2>Preguntas frecuentes</h2></div>
+  <div class="faq">
+    <details><summary>¿Cómo sé que mi pago fue recibido?</summary>
+      <p>Después de transferir, tu página de pago muestra el estado. Cuando verificamos el abono pasa a «Pagado» y tus números quedan asegurados. Guarda el enlace de esa página.</p></details>
+    <details><summary>¿Cuánto tiempo tengo para transferir?</summary>
+      <p>Tus números quedan reservados {{ config.ticket_reservation_minutes }} minutos. Si avisas con tu N° de operación, la reserva se extiende hasta {{ config.proof_review_hours }} horas mientras verificamos.</p></details>
+    <details><summary>Transferí, pero se me venció el tiempo. ¿Qué hago?</summary>
+      <p>Escríbenos por WhatsApp con tu código (por ejemplo RIFA-00042). Si tus números siguen libres, los confirmamos.</p></details>
+    <details><summary>¿Puedo comprar varios números?</summary>
+      <p>Sí, hasta {{ config.max_tickets_per_purchase }} por compra y con una sola transferencia por el total.</p></details>
+    <details><summary>¿Cómo publico mi propia rifa?</summary>
+      <p>Escríbenos por WhatsApp (botón más abajo). Revisamos tu rifa, la publicamos y configuramos tu cuenta para recibir las transferencias.</p></details>
+  </div>
+</section>
+
+{% if config.promo_whatsapp %}
+<section class="container section" id="publica">
+  <div class="promo">
+    <div>
+      <h2>¿Quieres publicar tu propia rifa aquí?</h2>
+      <p>Usa esta página para vender los números de tu rifa. Escríbeme y te cuento cómo funciona, cuánto cuesta y cómo dejarla publicada.</p>
+    </div>
+    <div class="promo__cta">
+      <a class="btn btn--gold btn--lg" target="_blank" rel="noopener"
+         href="https://wa.me/{{ config.promo_whatsapp }}?text=Hola,%20quiero%20publicar%20mi%20rifa%20en%20Chile%20Raffle">Escribir por WhatsApp</a>
+      <span class="promo__number">{{ config.promo_whatsapp_display }}</span>
+    </div>
+  </div>
+</section>
+{% endif %}
+{% endblock %}
+
+{% block extra_head %}
+<script>
+  document.addEventListener("DOMContentLoaded", () => {
+    const el = document.querySelector(".big-ticket__count");
+    if (!el) return;
+    const target = new Date(el.dataset.draw).getTime();
+    const pad = (n) => String(n).padStart(2, "0");
+    function tick() {
+      const ms = target - Date.now();
+      if (ms <= 0) { el.textContent = "· sorteo pendiente"; return; }
+      const d = Math.floor(ms / 864e5), h = Math.floor(ms % 864e5 / 36e5), m = Math.floor(ms % 36e5 / 6e4), s = Math.floor(ms % 6e4 / 1e3);
+      el.textContent = `· faltan ${d > 0 ? d + " d " : ""}${pad(h)}:${pad(m)}:${pad(s)}`;
+    }
+    tick(); setInterval(tick, 1000);
+  });
+</script>
+{% endblock %}

@@ -1,0 +1,12 @@
+.env
+.env.*
+!.env.production.example
+config/settings_dev.py
+db.sqlite3
+__pycache__/
+*.pyc
+venv/
+.venv/
+.idea/
+staticfiles/
+media/

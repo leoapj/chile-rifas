@@ -1,0 +1,32 @@
+# Blueprint de Render: New + > Blueprint > elige tu repositorio.
+# La base de datos PostgreSQL NO va aquí: usa Neon (gratis y permanente). Ver DEPLOY.md.
+services:
+  - type: web
+    name: chile-raffle
+    runtime: python
+    plan: free
+    buildCommand: ./build.sh
+    startCommand: gunicorn config.wsgi:application --workers 2 --timeout 60
+    healthCheckPath: /healthz/
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.4
+      - key: DJANGO_SETTINGS_MODULE
+        value: config.settings
+      - key: DEBUG
+        value: "False"
+      - key: SECRET_KEY
+        generateValue: true
+      # --- Render te pedirá estos valores al crear el servicio (ver DEPLOY.md) ---
+      - key: DATABASE_URL          # la cadena de conexión de Neon
+        sync: false
+      - key: DJANGO_SUPERUSER_USERNAME
+        sync: false
+      - key: DJANGO_SUPERUSER_PASSWORD
+        sync: false
+      - key: DJANGO_SUPERUSER_EMAIL
+        sync: false
+      - key: BREVO_API_KEY         # correos (ver DEPLOY.md)
+        sync: false
+      - key: CLOUDINARY_URL        # imágenes de las rifas
+        sync: false

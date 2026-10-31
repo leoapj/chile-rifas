@@ -1,0 +1,240 @@
+{% extends "base.html" %}
+{% load clp %}
+
+{% block title %}{{ raffle.name }} — Chile Raffle{% endblock %}
+{% block description %}Participa en la rifa «{{ raffle.name }}»: números desde ${{ raffle.price_clp|clp }}. Elige tu número y paga por transferencia.{% endblock %}
+{% block og %}
+  <meta property="og:title" content="{{ raffle.name }} — Rifa desde ${{ raffle.price_clp|clp }} por número">
+  <meta property="og:description" content="Quedan {{ raffle.tickets_available_count }} números. Sorteo el {{ raffle.draw_date|date:'d \d\e F' }}. Elige el tuyo.">
+  <meta property="og:url" content="{{ page_url }}">
+  {% if og_image %}<meta property="og:image" content="{{ og_image }}"><meta name="twitter:card" content="summary_large_image">{% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="container">
+  <div class="detail-header">
+    {% if raffle.image %}
+      <img src="{{ raffle.image.url }}" alt="{{ raffle.name }}">
+    {% else %}
+      <div style="background: var(--color-panel); border-radius: var(--radius-md); aspect-ratio: 4/3;"></div>
+    {% endif %}
+
+    <div>
+      <span class="tag">{{ raffle.tickets_available_count }} de {{ raffle.total_tickets }} números libres</span>
+      <h1>{{ raffle.name }}</h1>
+      {% if raffle.organizer_name %}<p class="organizer">Organiza: {{ raffle.organizer_name }}</p>{% endif %}
+      <p style="color: var(--color-text-muted);">{{ raffle.description|linebreaksbr }}</p>
+      <div class="detail-stats">
+        <div><span>Precio por número</span><strong>${{ raffle.price_clp|clp }}</strong></div>
+        <div><span>Sorteo</span><strong>{{ raffle.draw_date|date:"d M, H:i" }}</strong></div>
+        <div><span>Vendido</span><strong>{{ raffle.percent_sold }}%</strong></div>
+      </div>
+      <div class="ticket-stub__progress detail-progress"><div class="ticket-stub__progress-bar" style="width: {{ raffle.percent_sold }}%;"></div></div>
+      <button type="button" class="btn btn--ghost" id="share-btn">Compartir por WhatsApp</button>
+    </div>
+  </div>
+
+  <section class="number-board-section">
+    <h2>Elige tus números</h2>
+    <div class="board-tools">
+      <label class="tool">Buscar mi número
+        <input type="number" id="find-number" min="1" max="{{ raffle.total_tickets }}" inputmode="numeric" placeholder="Ej. 77">
+      </label>
+      <div class="tool tool--random">
+        <label>Elegir al azar
+          <input type="number" id="random-count" min="1" max="{{ max_tickets }}" value="3" inputmode="numeric">
+        </label>
+        <button type="button" class="btn btn--gold" id="random-btn">🎲 Sorprenderme</button>
+      </div>
+      <button type="button" class="btn btn--ghost" id="clear-btn">Limpiar selección</button>
+    </div>
+    <div class="number-board-legend">
+      <span class="legend-swatch"><i style="background: transparent; border: 1.5px solid var(--color-turquoise);"></i> Disponible</span>
+      <span class="legend-swatch"><i style="background: var(--color-turquoise);"></i> Seleccionado</span>
+      <span class="legend-swatch"><i style="background: rgba(232,179,61,0.35);"></i> Reservado</span>
+      <span class="legend-swatch"><i style="background: rgba(228,87,46,0.3);"></i> Pagado</span>
+    </div>
+
+    <div class="number-board" id="number-board">
+      {% for ticket in tickets %}
+        <button type="button"
+          class="number-cell {% if ticket.status == 'reserved' %}is-taken{% elif ticket.status == 'paid' %}is-paid{% endif %}"
+          data-number="{{ ticket.number }}"
+          {% if ticket.status != 'available' %}disabled{% endif %}>{{ ticket.number }}</button>
+      {% endfor %}
+    </div>
+  </section>
+</div>
+
+<div class="selection-bar" id="selection-bar">
+  <div class="container">
+    <div class="selection-bar__info">
+      <span id="selection-count">0 números seleccionados</span>
+      <strong id="selection-total">$0</strong>
+    </div>
+    <button type="button" class="btn btn--gold" id="open-checkout">Comprar ahora</button>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="checkout-modal">
+  <div class="modal">
+    <button type="button" class="modal-close" id="close-checkout">&times;</button>
+    <h3>Reserva tus números</h3>
+    <p style="font-size: 0.85rem; color: var(--color-text-dark-muted);">
+      Quedarán reservados por {{ reservation_minutes }} minutos para que hagas la transferencia.
+      En el siguiente paso verás los datos bancarios.
+    </p>
+
+    <div class="form-error" id="checkout-error"></div>
+
+    <form id="checkout-form">
+      <div class="field">
+        <label for="buyer_name">Nombre completo</label>
+        <input type="text" id="buyer_name" name="buyer_name" autocomplete="name" required>
+      </div>
+      <div class="field">
+        <label for="buyer_phone">Celular (WhatsApp)</label>
+        <input type="tel" id="buyer_phone" name="buyer_phone" autocomplete="tel" placeholder="+56 9 1234 5678" required>
+      </div>
+      <div class="field">
+        <label for="buyer_email">Correo (opcional)</label>
+        <input type="email" id="buyer_email" name="buyer_email" autocomplete="email">
+      </div>
+      <div class="modal-total" id="modal-total"></div>
+      <button type="submit" class="btn btn--primary btn--block" id="submit-checkout">Reservar y ver datos de transferencia</button>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_head %}
+<script>
+  const RAFFLE_ID = {{ raffle.id }};
+  const PRICE_CLP = {{ price_clp_js|safe }};
+  const MAX_TICKETS = {{ max_tickets_js|safe }};
+  const RESERVE_URL = "{% url 'payment-reserve' %}";
+  const SHARE_TEXT = {{ share_text_js|safe }};
+  const clp = (n) => "$" + n.toLocaleString("es-CL");
+
+  function getCookie(name) {
+    const m = document.cookie.match(new RegExp("(^| )" + name + "=([^;]+)"));
+    return m ? decodeURIComponent(m[2]) : null;
+  }
+
+  document.addEventListener("DOMContentLoaded", () => {
+    const board = document.getElementById("number-board");
+    const bar = document.getElementById("selection-bar");
+    const countLabel = document.getElementById("selection-count");
+    const totalLabel = document.getElementById("selection-total");
+    const modal = document.getElementById("checkout-modal");
+    const errorBox = document.getElementById("checkout-error");
+    const form = document.getElementById("checkout-form");
+    const submitBtn = document.getElementById("submit-checkout");
+    const modalTotal = document.getElementById("modal-total");
+    const selected = new Set();
+
+    function refreshBar() {
+      const n = selected.size;
+      countLabel.textContent = n === 1 ? "1 número seleccionado" : `${n} números seleccionados`;
+      totalLabel.textContent = clp(n * PRICE_CLP);
+      bar.classList.toggle("is-visible", n > 0);
+    }
+
+    board.addEventListener("click", (e) => {
+      const cell = e.target.closest(".number-cell");
+      if (!cell || cell.disabled) return;
+      const number = cell.dataset.number;
+      if (selected.has(number)) {
+        selected.delete(number);
+        cell.classList.remove("is-selected");
+      } else {
+        if (selected.size >= MAX_TICKETS) {
+          alert(`Puedes elegir hasta ${MAX_TICKETS} números por compra.`);
+          return;
+        }
+        selected.add(number);
+        cell.classList.add("is-selected");
+      }
+      refreshBar();
+    });
+
+    document.getElementById("open-checkout").addEventListener("click", () => {
+      if (!selected.size) return;
+      modalTotal.textContent = `Total a transferir: ${clp(selected.size * PRICE_CLP)} (${selected.size} ${selected.size === 1 ? "número" : "números"})`;
+      modal.classList.add("is-open");
+    });
+    document.getElementById("close-checkout").addEventListener("click", () => modal.classList.remove("is-open"));
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      errorBox.classList.remove("is-visible");
+      submitBtn.disabled = true;
+      submitBtn.textContent = "Reservando...";
+      const fd = new FormData(form);
+      try {
+        const res = await fetch(RESERVE_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "X-CSRFToken": getCookie("csrftoken") || "" },
+          body: JSON.stringify({
+            raffle_id: RAFFLE_ID,
+            ticket_numbers: Array.from(selected).map(Number),
+            buyer_name: fd.get("buyer_name"),
+            buyer_phone: fd.get("buyer_phone"),
+            buyer_email: fd.get("buyer_email") || "",
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          const msg = data.detail || Object.values(data).flat().join(" ") || "No se pudo reservar.";
+          throw new Error(msg);
+        }
+        window.location.href = `/pago/${data.public_id}/`;
+      } catch (err) {
+        errorBox.textContent = err.message;
+        errorBox.classList.add("is-visible");
+        submitBtn.disabled = false;
+        submitBtn.textContent = "Reservar y ver datos de transferencia";
+      }
+    });
+
+    // --- Buscar un número: lo muestra y lo resalta ---
+    const finder = document.getElementById("find-number");
+    finder.addEventListener("input", () => {
+      board.querySelectorAll(".is-found").forEach((c) => c.classList.remove("is-found"));
+      const cell = board.querySelector(`[data-number="${parseInt(finder.value, 10)}"]`);
+      if (!cell) return;
+      cell.classList.add("is-found");
+      cell.scrollIntoView({ block: "center", behavior: "smooth" });
+    });
+
+    // --- Elegir al azar entre los números libres ---
+    document.getElementById("random-btn").addEventListener("click", () => {
+      const want = Math.max(1, Math.min(parseInt(document.getElementById("random-count").value, 10) || 1, MAX_TICKETS));
+      const free = Array.from(board.querySelectorAll(".number-cell:not([disabled])"));
+      free.forEach((c) => { c.classList.remove("is-selected"); });
+      selected.clear();
+      for (let i = free.length - 1; i > 0; i--) {   // Fisher-Yates
+        const j = Math.floor(Math.random() * (i + 1));
+        [free[i], free[j]] = [free[j], free[i]];
+      }
+      free.slice(0, want).forEach((c) => { c.classList.add("is-selected"); selected.add(c.dataset.number); });
+      refreshBar();
+      const first = board.querySelector(".is-selected");
+      if (first) first.scrollIntoView({ block: "center", behavior: "smooth" });
+    });
+
+    document.getElementById("clear-btn").addEventListener("click", () => {
+      board.querySelectorAll(".is-selected").forEach((c) => c.classList.remove("is-selected"));
+      selected.clear();
+      refreshBar();
+    });
+
+    // --- Compartir ---
+    document.getElementById("share-btn").addEventListener("click", () => {
+      window.open("https://wa.me/?text=" + encodeURIComponent(SHARE_TEXT + " " + location.href), "_blank", "noopener");
+    });
+
+    refreshBar();
+  });
+</script>
+{% endblock %}
