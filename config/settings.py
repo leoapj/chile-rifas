@@ -125,6 +125,10 @@ CLOUDINARY_URL = env("CLOUDINARY_URL", default="")
 if CLOUDINARY_URL:
     INSTALLED_APPS += ["cloudinary", "cloudinary_storage"]
     STORAGES["default"] = {"BACKEND": "cloudinary_storage.storage.MediaCloudinaryStorage"}
+    # Sin esto las URLs de las fotos salen con http:// y el navegador las bloquea en un sitio https.
+    import cloudinary
+
+    cloudinary.config(secure=True)
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
@@ -146,8 +150,8 @@ EMAIL_HOST = "smtp.gmail.com"
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
 EMAIL_TIMEOUT = 10
-EMAIL_HOST_USER = "chilerifas93634@gmail.com"
-DEFAULT_FROM_EMAIL = "Rifas Chile <chilerifas93634@gmail.com>"
+EMAIL_HOST_USER = "rifaschile93634@gmail.com"
+DEFAULT_FROM_EMAIL = "Rifas Chile <rifaschile93634@gmail.com>"
 BREVO_API_KEY = env("BREVO_API_KEY", default="")
 ANYMAIL = {"BREVO_API_KEY": BREVO_API_KEY}
 if BREVO_API_KEY:
@@ -177,3 +181,10 @@ if (
             f"'{_cmd}' está bloqueado: apuntas a una base REMOTA ({_db_host}). Podría borrar datos de producción."
         )
     print(f"\n⚠️  CONECTADO A LA BASE REMOTA (PRODUCCIÓN): {_db_host}\n", file=sys.stderr)
+
+# --- Diagnóstico al arrancar (aparece en los Logs de Render; no muestra claves) ---
+print(
+    f"[CONFIG] DEBUG={DEBUG} | Cloudinary={'SI' if CLOUDINARY_URL else 'NO (fotos al disco local)'} | "
+    f"Brevo={'SI' if BREVO_API_KEY else 'NO'} | correo={EMAIL_BACKEND}",
+    file=sys.stderr,
+)

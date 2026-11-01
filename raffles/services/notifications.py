@@ -18,9 +18,11 @@ def _send(subject: str, body: str) -> None:
 
     to = SiteConfiguration.load().admin_notification_email
     if not to:
+        logger.warning("Correo NO enviado (%s): falta el «Correo para avisos» en Admin > Configuración del sitio.", subject)
         return
     try:
         send_mail(subject, body, settings.DEFAULT_FROM_EMAIL, [to], fail_silently=False)
+        logger.info("Correo enviado a %s: %s", to, subject)
     except Exception:  # noqa: BLE001 - un fallo de correo jamás debe afectar la compra
         logger.exception("No se pudo enviar el correo de aviso a %s", to)
 
