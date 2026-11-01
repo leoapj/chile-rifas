@@ -1,0 +1,32 @@
+{% extends "moderar/base.html" %}{% load clp %}{% block title %}{{ payment.reference_code }}{% endblock %}
+{% block content %}{% with p=payment %}
+<div class="head"><div><a href="{% url 'mod-payments' %}">← Pagos</a><h1>{{ p.reference_code }} {% include "moderar/_status.html" %}</h1>
+<p class="sub">{{ p.raffle.name }} · creado {{ p.created_at|date:"d-m-Y H:i" }}</p></div>
+<form method="post" action="{% url 'mod-payment-action' p.pk %}" class="btn-row">{% csrf_token %}
+{% if can_confirm %}<button name="action" value="confirm" class="btn btn-ok" onclick="return confirm('¿Ya viste el abono de ${{ p.amount|clp }} en tu cartola?')">✅ Confirmar transferencia</button>{% endif %}
+{% if can_reject %}<button name="action" value="reject" class="btn btn-bad" onclick="return confirm('¿Rechazar y liberar los números?')">❌ Rechazar</button>{% endif %}</form></div>
+{% if p.status == 'expired' %}<div class="msgs"><li class="warning" style="list-style:none">Este pago expiró. Si el comprador transfirió tarde y los números siguen libres, puedes confirmarlo igual.</li></div>{% endif %}
+<div class="grid g2">
+<div class="card"><h2>Qué buscar en tu cartola</h2><dl class="kv">
+<dt>Monto exacto</dt><dd style="font-size:20px">${{ p.amount|clp }} CLP</dd>
+<dt>Comentario</dt><dd>{{ p.reference_code }}</dd>
+<dt>N° de operación</dt><dd>{{ p.buyer_reference|default:"(aún no lo informa)" }}</dd>
+<dt>Comprobante enviado</dt><dd>{% if p.proof_submitted_at %}{{ p.proof_submitted_at|date:"d-m-Y H:i" }}{% else %}No{% endif %}</dd>
+<dt>Debió transferir a</dt><dd>{% for a in accounts %}{{ a }}<br><small class="muted">{{ a.holder_name }} · {{ a.holder_rut }}</small>{% if not forloop.last %}<br>{% endif %}{% empty %}<span class="muted">(sin cuenta configurada)</span>{% endfor %}</dd>
+<dt>Vence</dt><dd>{{ p.expires_at|date:"d-m-Y H:i" }}</dd></dl></div>
+<div class="card"><h2>Comprador y números</h2><dl class="kv">
+<dt>Nombre</dt><dd>{{ p.buyer_name }}</dd>
+<dt>Teléfono</dt><dd>{{ p.buyer_phone }} <a class="btn btn-sm" target="_blank" href="https://wa.me/{{ p.buyer_phone|cut:'+'|cut:' ' }}">WhatsApp</a></dd>
+<dt>Correo</dt><dd>{{ p.buyer_email|default:"(no dejó correo)" }}</dd>
+<dt>Números</dt><dd>{% for t in tickets %}<span class="badge b-{{ t.status }}">#{{ t.number }}</span> {% endfor %}</dd>
+<dt>Gestionado por</dt><dd>{% if p.verified_at %}{{ p.verified_by.get_username|default:"—" }} el {{ p.verified_at|date:"d-m-Y H:i" }}{% else %}—{% endif %}</dd>
+<dt>Enlace del comprador</dt><dd><a href="{% url 'payment-status-page' p.public_id %}" target="_blank">ver página de pago ↗</a></dd></dl></div></div>
+<div class="grid g2">
+<div class="card"><h2>Corregir datos y notas</h2><form method="post" action="{% url 'mod-payment-action' p.pk %}">{% csrf_token %}{% include "moderar/_form.html" %}
+<button name="action" value="save" class="btn btn-pri">Guardar</button></form></div>
+<div class="card"><h2>Otras acciones</h2><div class="btn-row">
+{% if p.status == 'pending' %}<form class="inline" method="post" action="{% url 'mod-payment-action' p.pk %}">{% csrf_token %}<input type="hidden" name="hours" value="24"><button name="action" value="extend" class="btn">⏱ Extender reserva 24 h</button></form>{% endif %}
+{% if p.status == 'completed' or p.status == 'failed' %}<form class="inline" method="post" action="{% url 'mod-payment-action' p.pk %}">{% csrf_token %}<button name="action" value="resend" class="btn">📧 Reenviar correo al comprador</button></form>{% endif %}
+<a class="btn" href="{% url 'mod-raffle-detail' p.raffle_id %}">Ver tablero de la rifa</a></div>
+<p class="help mt">Al confirmar o rechazar, si el comprador dejó su correo, se le avisa automáticamente con sus números y datos.</p></div></div>
+{% endwith %}{% endblock %}

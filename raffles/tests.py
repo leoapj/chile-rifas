@@ -344,3 +344,173 @@ class ConcurrencyTests(ThrottleResetMixin, TransactionTestCase):
         [t.join() for t in threads]
         self.assertEqual(sorted(results), [201] + [409] * 7)
         self.assertEqual(Payment.objects.count(), 1)
+
+
+# ---------------------------------------------------------------------------
+# Panel de moderación y correos al comprador
+# ---------------------------------------------------------------------------
+from django.contrib.auth import get_user_model  # noqa: E402
+
+
+class ModerationPanelTests(ThrottleResetMixin, TestCase):
+    def setUp(self):
+        super().setUp()
+        from django.core import mail
+        self.mail = mail
+        User = get_user_model()
+        self.staff = User.objects.create_user("mod", password="clave-segura-1", is_staff=True)
+        self.normal = User.objects.create_user("juan", password="clave-segura-1")
+        self.root = User.objects.create_superuser("root", "r@x.cl", "clave-segura-1")
+        self.raffle = make_raffle(total=10)
+        res = self.client.post(
+            reverse("payment-reserve"),
+            {"raffle_id": self.raffle.id, "ticket_numbers": [1, 2], **BUYER, "buyer_email": "comprador@correo.cl"},
+            content_type="application/json",
+        )
+        self.payment = Payment.objects.get(public_id=res.json()["public_id"])
+
+    # --- acceso
+    def test_anonymous_and_non_staff_are_sent_to_login(self):
+        for url in ("mod-dashboard", "mod-payments", "mod-raffles", "mod-config"):
+            res = self.client.get(reverse(url))
+            self.assertEqual(res.status_code, 302)
+            self.assertIn("/moderar/login/", res["Location"])
+        self.client.login(username="juan", password="clave-segura-1")
+        self.assertEqual(self.client.get(reverse("mod-payments")).status_code, 302)
+
+    def test_non_staff_cannot_log_in_and_staff_can(self):
+        res = self.client.post(reverse("mod-login"), {"username": "juan", "password": "clave-segura-1"})
+        self.assertEqual(res.status_code, 200)  # vuelve al formulario con error
+        res = self.client.post(reverse("mod-login"), {"username": "mod", "password": "clave-segura-1"})
+        self.assertRedirects(res, "/moderar/", fetch_redirect_response=False)
+
+    def test_all_pages_render_for_staff(self):
+        self.client.login(username="mod", password="clave-segura-1")
+        urls = [reverse(n) for n in ("mod-dashboard", "mod-payments", "mod-raffles", "mod-raffle-new",
+                                     "mod-accounts", "mod-account-new", "mod-config")]
+        urls += [reverse("mod-payment-detail", args=[self.payment.pk]),
+                 reverse("mod-raffle-detail", args=[self.raffle.pk]),
+                 reverse("mod-raffle-edit", args=[self.raffle.pk]),
+                 reverse("mod-raffle-export", args=[self.raffle.pk]),
+                 reverse("mod-payments") + "?estado=por_revisar&q=RIFA-1"]
+        for url in urls:
+            self.assertEqual(self.client.get(url).status_code, 200, url)
+
+    def test_moderators_page_is_superuser_only(self):
+        self.client.login(username="mod", password="clave-segura-1")
+        self.assertEqual(self.client.get(reverse("mod-users")).status_code, 302)
+        self.client.login(username="root", password="clave-segura-1")
+        self.assertEqual(self.client.get(reverse("mod-users")).status_code, 200)
+
+    # --- pagos y correo al comprador
+    def test_confirm_from_panel_marks_paid_and_emails_buyer(self):
+        self.client.login(username="mod", password="clave-segura-1")
+        with self.captureOnCommitCallbacks(execute=True):
+            self.client.post(reverse("mod-payment-action", args=[self.payment.pk]), {"action": "confirm"})
+        self.payment.refresh_from_db()
+        self.assertEqual(self.payment.status, Payment.Status.COMPLETED)
+        self.assertEqual(self.payment.verified_by, self.staff)
+        buyer_mails = [m for m in self.mail.outbox if m.to == ["comprador@correo.cl"]]
+        self.assertEqual(len(buyer_mails), 1)
+        self.assertIn("aprobado", buyer_mails[0].subject)
+        self.assertIn("#1, #2", buyer_mails[0].body)
+        self.assertIn(self.payment.reference_code, buyer_mails[0].body)
+
+    def test_reject_from_panel_releases_and_emails_buyer(self):
+        self.client.login(username="mod", password="clave-segura-1")
+        with self.captureOnCommitCallbacks(execute=True):
+            self.client.post(reverse("mod-payment-action", args=[self.payment.pk]), {"action": "reject"})
+        self.payment.refresh_from_db()
+        self.assertEqual(self.payment.status, Payment.Status.FAILED)
+        self.assertEqual(self.raffle.tickets.filter(status="available").count(), 10)
+        buyer_mails = [m for m in self.mail.outbox if m.to == ["comprador@correo.cl"]]
+        self.assertEqual(len(buyer_mails), 1)
+        self.assertIn("no confirmado", buyer_mails[0].subject)
+
+    def test_no_buyer_email_means_no_mail(self):
+        Payment.objects.filter(pk=self.payment.pk).update(buyer_email="")
+        self.payment.refresh_from_db()
+        with self.captureOnCommitCallbacks(execute=True):
+            self.payment.mark_completed()
+        self.assertEqual(len(self.mail.outbox), 0)
+
+    def test_get_does_not_change_state(self):
+        self.client.login(username="mod", password="clave-segura-1")
+        res = self.client.get(reverse("mod-payment-action", args=[self.payment.pk]) + "?action=confirm")
+        self.assertEqual(res.status_code, 405)
+
+    def test_admin_email_links_to_moderation_panel(self):
+        cfg = SiteConfiguration.load()
+        cfg.admin_notification_email = "yo@correo.cl"
+        cfg.save()
+        with self.captureOnCommitCallbacks(execute=True):
+            self.payment.submit_proof("123456")
+        admin_mail = [m for m in self.mail.outbox if m.to == ["yo@correo.cl"]][0]
+        self.assertIn(f"/moderar/pagos/{self.payment.pk}/", admin_mail.body)
+
+    # --- rifas / números
+    def test_manual_sale_and_ranges(self):
+        self.client.login(username="mod", password="clave-segura-1")
+        res = self.client.post(reverse("mod-manual-sale", args=[self.raffle.pk]), {
+            "numbers": "5, 7-8", "buyer_name": "Ana", "buyer_phone": "+56911112222", "buyer_email": "", "notes": "efectivo"})
+        self.assertEqual(res.status_code, 302)
+        self.assertEqual(self.raffle.tickets.filter(status="paid").count(), 3)
+        sale = Payment.objects.get(buyer_name="Ana")
+        self.assertEqual(sale.amount, 6000)
+        self.assertEqual(sale.status, Payment.Status.COMPLETED)
+        # un número ya reservado no se puede vender
+        self.client.post(reverse("mod-manual-sale", args=[self.raffle.pk]), {
+            "numbers": "1", "buyer_name": "Beto", "buyer_phone": "+56933334444"})
+        self.assertFalse(Payment.objects.filter(buyer_name="Beto").exists())
+
+    def test_set_winner_random_and_manual(self):
+        self.client.login(username="mod", password="clave-segura-1")
+        self.payment.mark_completed()
+        self.client.post(reverse("mod-raffle-action", args=[self.raffle.pk]), {"action": "winner", "number": "2"})
+        self.raffle.refresh_from_db()
+        self.assertEqual(self.raffle.winner_ticket.number, 2)
+        self.assertEqual(self.raffle.status, Raffle.Status.FINISHED)
+        self.client.post(reverse("mod-raffle-action", args=[self.raffle.pk]), {"action": "winner", "number": "9"})
+        self.raffle.refresh_from_db()
+        self.assertEqual(self.raffle.winner_ticket.number, 2)  # el 9 no está pagado: no cambia
+
+    def test_block_unblock_and_release_ticket(self):
+        self.client.login(username="mod", password="clave-segura-1")
+        url = lambda n: reverse("mod-ticket-action", args=[self.raffle.pk, n])  # noqa: E731
+        self.client.post(url(5), {"action": "block"})
+        self.assertEqual(self.raffle.tickets.get(number=5).status, "cancelled")
+        self.client.post(url(5), {"action": "unblock"})
+        self.assertEqual(self.raffle.tickets.get(number=5).status, "available")
+        self.client.post(url(1), {"action": "release"})
+        self.assertEqual(self.raffle.tickets.get(number=1).status, "available")
+
+    def test_edit_raffle_grows_and_shrinks_tickets(self):
+        self.client.login(username="mod", password="clave-segura-1")
+        data = {"name": "Premio", "slug": "premio", "description": "", "organizer_name": "", "price_clp": 2000,
+                "total_tickets": 15, "status": "active", "draw_date": "2030-01-01T20:00"}
+        self.client.post(reverse("mod-raffle-edit", args=[self.raffle.pk]), data)
+        self.assertEqual(self.raffle.tickets.count(), 15)
+        self.client.post(reverse("mod-raffle-edit", args=[self.raffle.pk]), {**data, "total_tickets": 12})
+        self.assertEqual(self.raffle.tickets.count(), 12)
+        # no se puede bajar por debajo de un número con comprador (el 2 está reservado)
+        self.client.post(reverse("mod-raffle-edit", args=[self.raffle.pk]), {**data, "total_tickets": 1})
+        self.assertEqual(self.raffle.tickets.count(), 12)
+
+    def test_create_raffle_autogenerates_slug_and_tickets(self):
+        self.client.login(username="mod", password="clave-segura-1")
+        res = self.client.post(reverse("mod-raffle-new"), {
+            "name": "Mi Gran Rifa", "slug": "", "description": "", "organizer_name": "María", "price_clp": 1000,
+            "total_tickets": 5, "status": "active", "draw_date": "2030-01-01T20:00"})
+        self.assertEqual(res.status_code, 302)
+        raffle = Raffle.objects.get(name="Mi Gran Rifa")
+        self.assertEqual(raffle.slug, "mi-gran-rifa")
+        self.assertEqual(raffle.tickets.count(), 5)
+
+    def test_create_moderator_and_it_cannot_use_django_admin(self):
+        self.client.login(username="root", password="clave-segura-1")
+        self.client.post(reverse("mod-user-new"), {"username": "nuevo", "first_name": "Nuevo", "email": "", "password": "otra-clave-123"})
+        user = get_user_model().objects.get(username="nuevo")
+        self.assertTrue(user.is_staff and not user.is_superuser)
+        self.client.login(username="nuevo", password="otra-clave-123")
+        self.assertEqual(self.client.get(reverse("mod-dashboard")).status_code, 200)
+        self.assertEqual(self.client.get(reverse("mod-users")).status_code, 302)

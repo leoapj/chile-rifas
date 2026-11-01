@@ -1,0 +1,12 @@
+{% extends "moderar/base.html" %}{% block title %}Cuentas{% endblock %}
+{% block content %}
+<div class="head"><div><h1>Cuentas bancarias</h1><p class="sub">Las rifas sin cuenta propia muestran las <b>generales</b> (las que no están asignadas a ninguna rifa). Asigna cuentas a cada rifa desde «Editar rifa».</p></div><a class="btn btn-pri" href="{% url 'mod-account-new' %}">+ Nueva cuenta</a></div>
+<div class="tablewrap"><table><tr><th>Banco</th><th>Tipo / número</th><th>Titular</th><th>Usada en</th><th>Visible</th><th></th></tr>
+{% for a in accounts %}<tr><td><b>{{ a.bank_name }}</b></td><td>{{ a.get_account_type_display }}<br>{{ a.account_number }}</td><td>{{ a.holder_name }}<br><small class="muted">{{ a.holder_rut }}</small></td>
+<td>{% for r in a.raffles.all %}{{ r.name }}{% if not forloop.last %}, {% endif %}{% empty %}<span class="muted">General</span>{% endfor %}</td>
+<td><span class="badge {% if a.is_active %}b-active{% else %}b-draft{% endif %}">{% if a.is_active %}Sí{% else %}Oculta{% endif %}</span></td>
+<td class="right nowrap"><a class="btn btn-sm" href="{% url 'mod-account-edit' a.pk %}">Editar</a>
+<form class="inline" method="post" action="{% url 'mod-account-action' a.pk %}">{% csrf_token %}<button name="action" value="toggle" class="btn btn-sm">{% if a.is_active %}Ocultar{% else %}Mostrar{% endif %}</button>
+<button name="action" value="delete" class="btn btn-bad btn-sm" onclick="return confirm('¿Eliminar esta cuenta?')">Eliminar</button></form></td></tr>
+{% empty %}<tr><td colspan="6" class="muted">Aún no hay cuentas.</td></tr>{% endfor %}</table></div>
+{% endblock %}

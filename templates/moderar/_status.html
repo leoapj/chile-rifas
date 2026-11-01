@@ -1,0 +1,1 @@
+{% if p.status == 'pending' and p.proof_submitted_at %}<span class="badge b-review">Por revisar</span>{% else %}<span class="badge b-{{ p.status }}">{{ p.get_status_display }}</span>{% endif %}

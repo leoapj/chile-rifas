@@ -47,7 +47,16 @@ https://cloudinary.com → cuenta gratis → Dashboard → *API Environment vari
 
 `SECRET_KEY`, `DEBUG=False`, `DJANGO_SETTINGS_MODULE=config.settings`, hosts y HTTPS se configuran solos.
 
-## 5. Configura el sitio desde el Admin (`/admin/`)
+## 5. Panel de moderación (`/moderar/`)
+Es el panel pensado para el día a día (y para otras personas que te ayuden), más simple que el Admin de Django:
+- **Entrar:** `https://TU-SITIO.onrender.com/moderar/` (también hay un enlace discreto «Acceso administradores» al pie del sitio). Usa tu usuario admin.
+- **Inicio:** pagos por revisar, totales y avance de cada rifa. **Pagos:** buscar/filtrar, confirmar o rechazar (uno o varios a la vez), corregir datos, extender reserva, reenviar el correo al comprador.
+- **Rifas:** crear/editar, publicar o cancelar, tablero de números (bloquear/liberar), **venta manual** (efectivo/WhatsApp), elegir **ganador**, exportar CSV y ver el 10 % de comisión.
+- **Cuentas:** bancos por rifa. **Configuración:** correo de avisos, WhatsApp, tiempos. **Moderadores** (solo administrador): crear personas que pueden moderar sin ver el Admin de Django.
+- El correo que te llega al enviarse un comprobante trae un botón-enlace directo al pago en este panel. Para que el enlace salga completo, Render lo deduce solo (o define `SITE_URL`).
+- Al confirmar o rechazar, el comprador recibe un correo con su resultado, números y datos (si dejó su correo).
+
+## 5b. Configura el sitio desde el Admin (`/admin/`) — alternativa avanzada
 1. **Cuentas bancarias**: tus cuentas generales.
 2. **Configuración del sitio**: *Correo para avisos* = donde quieres recibir los avisos (tu correo personal). Luego marca la configuración y usa la acción **📧 Enviar correo de prueba**.
 3. **Rifas**: crea la rifa y, si es de otra persona, escribe su nombre en *Organizador* y elige **sus** cuentas en *Cuentas para transferir*.

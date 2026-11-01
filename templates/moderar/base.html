@@ -1,0 +1,27 @@
+{% load static %}<!DOCTYPE html>
+<html lang="es-CL"><head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>{% block title %}Moderar{% endblock %} · Chile Raffle</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{% static 'css/moderar.css' %}">
+</head><body class="mod">
+{% if request.user.is_authenticated %}
+<header class="mod-top"><div class="mod-top__in">
+  <a class="mod-brand" href="{% url 'mod-dashboard' %}">Chile Raffle <span>· Moderar</span></a>
+  <nav class="mod-nav">
+    <a href="{% url 'mod-dashboard' %}" class="{% if nav == 'dashboard' %}on{% endif %}">Inicio</a>
+    <a href="{% url 'mod-payments' %}" class="{% if nav == 'pagos' %}on{% endif %}">Pagos</a>
+    <a href="{% url 'mod-raffles' %}" class="{% if nav == 'rifas' %}on{% endif %}">Rifas</a>
+    <a href="{% url 'mod-accounts' %}" class="{% if nav == 'cuentas' %}on{% endif %}">Cuentas</a>
+    <a href="{% url 'mod-config' %}" class="{% if nav == 'config' %}on{% endif %}">Configuración</a>
+    {% if request.user.is_superuser %}<a href="{% url 'mod-users' %}" class="{% if nav == 'usuarios' %}on{% endif %}">Moderadores</a>{% endif %}
+  </nav>
+  <div class="mod-user"><a href="{% url 'home' %}" target="_blank" style="color:#c9d6e8">Ver sitio ↗</a> {{ request.user.get_username }}
+    <form method="post" action="{% url 'mod-logout' %}">{% csrf_token %}<button>Salir</button></form></div>
+</div></header>
+{% endif %}
+<div class="mod-wrap">
+{% if messages %}<ul class="msgs">{% for m in messages %}<li class="{{ m.level_tag }}">{{ m }}</li>{% endfor %}</ul>{% endif %}
+{% block content %}{% endblock %}
+</div></body></html>

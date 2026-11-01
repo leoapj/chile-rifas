@@ -1,0 +1,9 @@
+{% extends "moderar/base.html" %}{% block title %}Ingresar{% endblock %}
+{% block content %}<div class="login"><div class="card">
+<h1>Panel de moderación</h1><p class="sub">Solo para administradores y moderadores.</p>
+<form method="post">{% csrf_token %}{{ form.non_field_errors }}
+<div class="field"><label>Usuario</label>{{ form.username }}{{ form.username.errors }}</div>
+<div class="field"><label>Contraseña</label>{{ form.password }}{{ form.password.errors }}</div>
+<input type="hidden" name="next" value="{{ next }}">
+<button class="btn btn-pri" style="width:100%">Entrar</button></form>
+<p class="help mt"><a href="{% url 'home' %}">← Volver al sitio</a></p></div></div>{% endblock %}

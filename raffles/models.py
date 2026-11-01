@@ -396,6 +396,7 @@ class Payment(models.Model):
             payment.verified_by = verified_by
             payment.verified_at = timezone.now()
             payment.save()
+            transaction.on_commit(lambda: notifications.notify_buyer_payment_result(payment.pk))
             transaction.on_commit(lambda: notifications.notify_raffle_progress(payment.raffle_id))
         self.refresh_from_db()
 
@@ -413,4 +414,5 @@ class Payment(models.Model):
             payment.verified_by = verified_by
             payment.verified_at = timezone.now()
             payment.save()
+            transaction.on_commit(lambda: notifications.notify_buyer_payment_result(payment.pk))
         self.refresh_from_db()

@@ -38,6 +38,9 @@ if _render_host:
     ALLOWED_HOSTS.append(_render_host)
     CSRF_TRUSTED_ORIGINS.append(f"https://{_render_host}")
 
+# URL pública del sitio (para los enlaces dentro de los correos). En Render se deduce sola; opcional: variable SITE_URL.
+SITE_URL = env("SITE_URL", default=f"https://{_render_host}" if _render_host else "").rstrip("/")
+
 INSTALLED_APPS = [
     "django.contrib.admin",
     "django.contrib.auth",
@@ -61,6 +64,11 @@ MIDDLEWARE = [
 ]
 
 ROOT_URLCONF = "config.urls"
+
+# Panel de moderación (/moderar/): login propio.
+LOGIN_URL = "/moderar/login/"
+LOGIN_REDIRECT_URL = "/moderar/"
+LOGOUT_REDIRECT_URL = "/moderar/login/"
 WSGI_APPLICATION = "config.wsgi.application"
 
 TEMPLATES = [

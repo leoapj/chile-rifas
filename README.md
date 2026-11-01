@@ -10,6 +10,9 @@ Cada rifa puede tener **sus propias cuentas** para transferir (útil para public
 4. Admin → **Pagos** → filtro «Con comprobante» → **✅ Confirmar transferencia recibida**. (O ❌ Rechazar.)
 5. Te avisan por correo al llegar al **50%** y cuando la rifa se **completa**.
 
+## Panel de moderación
+`/moderar/` (login solo para `is_staff`): pagos, rifas, números, ventas manuales, ganador, cuentas, configuración y moderadores. Ver DEPLOY.md §5.
+
 ## Configuraciones (como en tu otra app)
 - `config/settings.py` — normal/producción (Render, variables de entorno). `config/settings_dev.py` — tu PC (**fuera de git**).
 - Desarrollo: `python manage.py runserver --settings=config.settings_dev` (por defecto).

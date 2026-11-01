@@ -1,0 +1,6 @@
+{% extends "moderar/base.html" %}{% block title %}Configuración{% endblock %}
+{% block content %}<h1>Configuración del sitio</h1><p class="sub">Correo de avisos, WhatsApp y tiempos de reserva.</p>
+<form class="card" method="post">{% csrf_token %}{% include "moderar/_form.html" %}
+<div class="btn-row"><button class="btn btn-pri" name="action" value="save">Guardar</button>
+<button class="btn" name="action" value="test_email" formnovalidate>📧 Enviar correo de prueba</button></div>
+<p class="help mt">«Enviar correo de prueba» usa el correo ya guardado: guarda primero si lo cambiaste.</p></form>{% endblock %}

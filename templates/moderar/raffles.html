@@ -1,0 +1,12 @@
+{% extends "moderar/base.html" %}{% load clp %}{% block title %}Rifas{% endblock %}
+{% block content %}
+<div class="head"><div><h1>Rifas</h1><p class="sub">Crea, edita y administra cada rifa.</p></div><a class="btn btn-pri" href="{% url 'mod-raffle-new' %}">+ Nueva rifa</a></div>
+<div class="btn-row" style="margin-bottom:12px"><a class="btn btn-sm {% if not estado %}btn-pri{% endif %}" href="?">Todas</a>
+{% for v, l in statuses %}<a class="btn btn-sm {% if estado == v %}btn-pri{% endif %}" href="?estado={{ v }}">{{ l }}</a>{% endfor %}</div>
+<div class="tablewrap"><table><tr><th>Rifa</th><th>Organiza</th><th>Precio</th><th>Avance</th><th>Estado</th><th>Sorteo</th><th></th></tr>
+{% for r in raffles %}<tr><td><a href="{% url 'mod-raffle-detail' r.pk %}"><b>{{ r.name }}</b></a></td><td>{{ r.organizer_name|default:"—" }}</td><td>${{ r.price_clp|clp }}</td>
+<td style="min-width:150px"><div class="bar"><i style="width:{{ r.percent }}%"></i></div><small class="muted">{{ r.paid_count }}/{{ r.total_tickets }} ({{ r.percent }}%) · {{ r.reserved_count }} reservados</small></td>
+<td><span class="badge b-{{ r.status }}">{{ r.get_status_display }}</span></td><td class="nowrap"><small>{{ r.draw_date|date:"d-m-Y H:i" }}</small></td>
+<td class="right nowrap"><a class="btn btn-sm" href="{% url 'mod-raffle-detail' r.pk %}">Abrir</a> <a class="btn btn-sm" href="{% url 'mod-raffle-edit' r.pk %}">Editar</a></td></tr>
+{% empty %}<tr><td colspan="7" class="muted">No hay rifas.</td></tr>{% endfor %}</table></div>
+{% endblock %}

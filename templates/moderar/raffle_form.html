@@ -1,0 +1,10 @@
+{% extends "moderar/base.html" %}{% block title %}{% if raffle %}Editar rifa{% else %}Nueva rifa{% endif %}{% endblock %}
+{% block content %}
+<a href="{% if raffle %}{% url 'mod-raffle-detail' raffle.pk %}{% else %}{% url 'mod-raffles' %}{% endif %}">← Volver</a>
+<h1>{% if raffle %}Editar «{{ raffle.name }}»{% else %}Nueva rifa{% endif %}</h1>
+<p class="sub">Si la rifa es de otra persona, escribe su nombre en «Organizador» y marca <b>sus</b> cuentas bancarias (créalas antes en <a href="{% url 'mod-account-new' %}">Cuentas</a>).</p>
+<form class="card" method="post" enctype="multipart/form-data">{% csrf_token %}{% include "moderar/_form.html" %}
+{% if raffle and raffle.image %}<p class="help">Imagen actual guardada. Sube otra para reemplazarla.</p>{% endif %}
+<p class="help">Los números 1…N se generan solos al guardar (si subes el total, se agregan; si lo bajas, se quitan solo los libres).</p>
+<div class="btn-row mt"><button class="btn btn-pri">Guardar rifa</button><a class="btn" href="{% url 'mod-raffles' %}">Cancelar</a></div></form>
+{% endblock %}

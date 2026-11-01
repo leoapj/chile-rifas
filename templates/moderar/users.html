@@ -1,0 +1,9 @@
+{% extends "moderar/base.html" %}{% block title %}Moderadores{% endblock %}
+{% block content %}<h1>Moderadores</h1><p class="sub">Personas que pueden entrar a este panel. Los moderadores no ven el Admin de Django.</p>
+<div class="tablewrap"><table><tr><th>Usuario</th><th>Nombre / correo</th><th>Rol</th><th>Estado</th><th></th></tr>
+{% for u in users %}<tr><td><b>{{ u.username }}</b></td><td>{{ u.first_name }} <small class="muted">{{ u.email }}</small></td>
+<td>{% if u.is_superuser %}Administrador{% else %}Moderador{% endif %}</td><td><span class="badge {% if u.is_active %}b-active{% else %}b-failed{% endif %}">{% if u.is_active %}Activo{% else %}Desactivado{% endif %}</span></td>
+<td class="right">{% if not u.is_superuser or u == request.user %}<form class="inline" method="post" action="{% url 'mod-user-action' u.pk %}">{% csrf_token %}
+{% if u != request.user %}<button name="action" value="toggle" class="btn btn-sm">{% if u.is_active %}Desactivar{% else %}Activar{% endif %}</button>{% endif %}
+<input type="password" name="password" placeholder="Nueva contraseña" minlength="8" style="width:150px"> <button name="action" value="password" class="btn btn-sm">Cambiar</button></form>{% endif %}</td></tr>{% endfor %}</table></div>
+<div class="card mt"><h2>Agregar moderador</h2><form method="post" action="{% url 'mod-user-new' %}">{% csrf_token %}{% include "moderar/_form.html" with form=form %}<button class="btn btn-pri">Crear moderador</button></form></div>{% endblock %}

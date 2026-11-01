@@ -1,0 +1,27 @@
+{% extends "moderar/base.html" %}{% load clp %}{% block title %}Inicio{% endblock %}
+{% block content %}
+<div class="head"><div><h1>Inicio</h1><p class="sub">Lo que necesita tu atención ahora.</p></div>
+<div class="btn-row"><a class="btn btn-pri" href="{% url 'mod-raffle-new' %}">+ Nueva rifa</a>
+<form class="inline" method="post" action="{% url 'mod-release-expired' %}">{% csrf_token %}<button class="btn">Liberar reservas vencidas</button></form></div></div>
+<div class="grid g4">
+  <a class="stat {% if to_review_count %}alert{% endif %}" href="{% url 'mod-payments' %}?estado=por_revisar" style="color:inherit;text-decoration:none"><small>Pagos por revisar</small><b>{{ to_review_count }}</b><small>con comprobante, esperando tu confirmación</small></a>
+  <a class="stat" href="{% url 'mod-payments' %}?estado=pending&comprobante=no" style="color:inherit;text-decoration:none"><small>Reservas sin comprobante</small><b>{{ no_proof_count }}</b><small>aún no avisan que transfirieron</small></a>
+  <div class="stat"><small>Confirmados hoy</small><b>{{ completed_today }}</b><small>${{ revenue_today|clp }} CLP</small></div>
+  <div class="stat"><small>Total confirmado</small><b>${{ revenue|clp }}</b><small>{{ paid_tickets }} números pagados</small></div>
+</div>
+<div class="card mt"><h2>Pagos por revisar</h2>
+{% if to_review %}<div class="tablewrap"><table><tr><th>Código</th><th>Rifa</th><th>Comprador</th><th>Monto</th><th>N° operación</th><th></th></tr>
+{% for p in to_review %}<tr><td><a href="{% url 'mod-payment-detail' p.pk %}"><b>{{ p.reference_code }}</b></a></td><td>{{ p.raffle.name }}</td><td>{{ p.buyer_name }}<br><small class="muted">{{ p.buyer_phone }}</small></td>
+<td class="nowrap">${{ p.amount|clp }}</td><td>{{ p.buyer_reference }}</td>
+<td class="right nowrap"><form class="inline" method="post" action="{% url 'mod-payment-action' p.pk %}">{% csrf_token %}<input type="hidden" name="next" value="{% url 'mod-dashboard' %}">
+<button name="action" value="confirm" class="btn btn-ok btn-sm">Confirmar</button> <button name="action" value="reject" class="btn btn-bad btn-sm" onclick="return confirm('¿Rechazar y liberar los números?')">Rechazar</button></form></td></tr>{% endfor %}</table></div>
+{% else %}<p class="muted">Nada pendiente por revisar. 🎉</p>{% endif %}</div>
+<div class="grid g2"><div class="card"><h2>Rifas activas</h2>
+{% for r in raffles %}<div style="margin-bottom:14px"><a href="{% url 'mod-raffle-detail' r.pk %}"><b>{{ r.name }}</b></a>
+<div class="bar mt" style="margin:6px 0"><i style="width:{{ r.percent }}%"></i></div>
+<small class="muted">{{ r.paid_count }}/{{ r.total_tickets }} pagados ({{ r.percent }}%) · {{ r.reserved_count }} reservados · sorteo {{ r.draw_date|date:"d-m-Y H:i" }}</small></div>
+{% empty %}<p class="muted">No hay rifas activas. <a href="{% url 'mod-raffle-new' %}">Crear una</a></p>{% endfor %}</div>
+<div class="card"><h2>Últimos movimientos</h2>
+{% for p in recent %}<div style="display:flex;justify-content:space-between;gap:8px;padding:6px 0;border-bottom:1px solid var(--line)"><span><a href="{% url 'mod-payment-detail' p.pk %}">{{ p.reference_code }}</a> · {{ p.buyer_name }}<br><small class="muted">{{ p.raffle.name }} · {{ p.created_at|date:"d-m H:i" }}</small></span>{% include "moderar/_status.html" %}</div>
+{% empty %}<p class="muted">Sin movimientos aún.</p>{% endfor %}</div></div>
+{% endblock %}

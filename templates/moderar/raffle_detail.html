@@ -1,0 +1,45 @@
+{% extends "moderar/base.html" %}{% load clp %}{% block title %}{{ raffle.name }}{% endblock %}
+{% block content %}{% with r=raffle %}
+<div class="head"><div><a href="{% url 'mod-raffles' %}">← Rifas</a><h1>{{ r.name }} <span class="badge b-{{ r.status }}">{{ r.get_status_display }}</span></h1>
+<p class="sub">{% if r.organizer_name %}Organiza {{ r.organizer_name }} · {% endif %}${{ r.price_clp|clp }} por número · sorteo {{ r.draw_date|date:"d-m-Y H:i" }}</p></div>
+<div class="btn-row"><a class="btn" href="{% url 'mod-raffle-edit' r.pk %}">✏️ Editar</a>
+{% if r.status == 'active' %}<a class="btn" target="_blank" href="{% url 'raffle-detail-page' r.slug %}">Ver en el sitio ↗</a>{% endif %}
+<a class="btn" href="{% url 'mod-raffle-export' r.pk %}">⬇ Exportar CSV</a></div></div>
+<div class="grid g4">
+<div class="stat"><small>Pagados</small><b>{{ counts.paid }}</b><small>de {{ r.total_tickets }}</small></div>
+<div class="stat"><small>Reservados</small><b>{{ counts.reserved }}</b></div>
+<div class="stat"><small>Disponibles</small><b>{{ counts.available }}</b>{% if counts.cancelled %}<small>{{ counts.cancelled }} bloqueados</small>{% endif %}</div>
+<div class="stat"><small>Recaudado confirmado</small><b>${{ revenue|clp }}</b><small>10% comisión: ${{ commission|clp }}</small></div></div>
+{% if r.winner_ticket %}<div class="card mt" style="border-color:var(--gold);background:#fffaf0"><h2>🏆 Ganador: número #{{ r.winner_ticket.number }}</h2>
+<p>{{ r.winner_ticket.buyer_name }} · {{ r.winner_ticket.buyer_phone }}{% if r.winner_ticket.buyer_email %} · {{ r.winner_ticket.buyer_email }}{% endif %}</p>
+<form class="inline" method="post" action="{% url 'mod-raffle-action' r.pk %}">{% csrf_token %}<button name="action" value="clear_winner" class="btn btn-sm">Quitar ganador</button></form></div>{% endif %}
+<div class="card mt"><h2>Estado de la rifa</h2><form method="post" action="{% url 'mod-raffle-action' r.pk %}" class="btn-row">{% csrf_token %}
+{% if r.status != 'active' %}<button name="action" value="activate" class="btn btn-ok btn-sm">Publicar (Activa)</button>{% endif %}
+{% if r.status == 'active' %}<button name="action" value="draft" class="btn btn-sm">Pasar a borrador</button>{% endif %}
+{% if r.status != 'finished' %}<button name="action" value="finish" class="btn btn-sm">Marcar finalizada</button>{% endif %}
+{% if r.status != 'cancelled' %}<button name="action" value="cancel" class="btn btn-bad btn-sm" onclick="return confirm('¿Cancelar la rifa?')">Cancelar rifa</button>{% endif %}
+<button name="action" value="delete" class="btn btn-bad btn-sm" onclick="return confirm('¿Eliminar la rifa definitivamente? Solo se permite si no tiene números pagados.')">Eliminar</button></form></div>
+<div class="grid g2">
+<div class="card"><h2>🏆 Elegir ganador</h2><form method="post" action="{% url 'mod-raffle-action' r.pk %}">{% csrf_token %}<input type="hidden" name="action" value="winner">
+<div class="field">{{ winner_form.number }}<div class="help">{{ winner_form.number.label }}. Usa un número si el ganador sale de la lotería; vacío = azar entre los pagados.</div></div>
+<button class="btn btn-pri" onclick="return confirm('Esto finaliza la rifa y fija el ganador. ¿Continuar?')">Elegir ganador</button></form></div>
+<div class="card"><h2>🧾 Venta manual (efectivo, WhatsApp…)</h2><form method="post" action="{% url 'mod-manual-sale' r.pk %}">{% csrf_token %}
+{% for f in sale_form %}<div class="field"><label>{{ f.label }}</label>{{ f }}{% if f.help_text %}<div class="help">{{ f.help_text }}</div>{% endif %}</div>{% endfor %}
+<button class="btn btn-pri">Registrar venta pagada</button></form></div></div>
+<div class="card"><h2>Tablero de números</h2>
+<form class="filters" method="get"><div><label>Buscar número o comprador</label><input type="text" name="q" value="{{ q }}"></div>
+<div><label>Estado</label><select name="estado"><option value="">Todos</option>{% for v, l in ticket_statuses %}<option value="{{ v }}" {% if estado == v %}selected{% endif %}>{{ l }}</option>{% endfor %}</select></div>
+<button class="btn btn-pri">Filtrar</button><a class="btn" href="?">Limpiar</a></form>
+<p class="help">Toca un número para ver su comprador y acciones.</p>
+<div class="board">{% for c in cells %}<button type="button" class="cell s-{{ c.t.status }} {% if r.winner_ticket_id == c.t.pk %}win{% endif %}" onclick="openT({{ c.t.number }})" title="{{ c.t.get_status_display }}">{{ c.t.number }}{% if c.t.buyer_name %}<small>{{ c.t.buyer_name }}</small>{% endif %}</button>{% endfor %}</div></div>
+{% for c in cells %}<dialog id="t{{ c.t.number }}"><h2>Número #{{ c.t.number }} <span class="badge b-{{ c.t.status }}">{{ c.t.get_status_display }}</span></h2>
+{% if c.t.buyer_name %}<dl class="kv"><dt>Comprador</dt><dd>{{ c.t.buyer_name }}</dd><dt>Teléfono</dt><dd>{{ c.t.buyer_phone }}</dd><dt>Correo</dt><dd>{{ c.t.buyer_email|default:"—" }}</dd>
+{% if c.t.reserved_until and c.t.status == 'reserved' %}<dt>Reserva hasta</dt><dd>{{ c.t.reserved_until|date:"d-m H:i" }}</dd>{% endif %}</dl>{% endif %}
+<div class="btn-row mt">{% if c.payment %}<a class="btn btn-sm" href="{% url 'mod-payment-detail' c.payment.pk %}">Ver pago {{ c.payment.reference_code }}</a>{% endif %}
+<form class="inline" method="post" action="{% url 'mod-ticket-action' r.pk c.t.number %}">{% csrf_token %}
+{% if c.t.status == 'reserved' %}<button name="action" value="release" class="btn btn-bad btn-sm">Liberar número</button>{% endif %}
+{% if c.t.status == 'available' %}<button name="action" value="block" class="btn btn-sm">Bloquear número</button>{% endif %}
+{% if c.t.status == 'cancelled' %}<button name="action" value="unblock" class="btn btn-sm">Desbloquear</button>{% endif %}</form>
+<button type="button" class="btn btn-sm" onclick="this.closest('dialog').close()">Cerrar</button></div></dialog>{% endfor %}
+<script>function openT(n){var d=document.getElementById('t'+n);if(d&&d.showModal)d.showModal();}</script>
+{% endwith %}{% endblock %}

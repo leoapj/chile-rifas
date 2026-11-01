@@ -27,13 +27,84 @@ def _send(subject: str, body: str) -> None:
         logger.exception("No se pudo enviar el correo de aviso a %s", to)
 
 
+def _site_url(path: str) -> str:
+    """Enlace absoluto para usar dentro de un correo (SITE_URL + ruta)."""
+    return f"{settings.SITE_URL}{path}" if settings.SITE_URL else path
+
+
+def _clp(value: int) -> str:
+    return f"${value:,}".replace(",", ".")
+
+
+def notify_buyer_payment_result(payment_id: int) -> None:
+    """
+    Avisa al COMPRADOR (si dejó su correo) que su pago fue aprobado o rechazado,
+    con sus números y datos. Nunca rompe el flujo: si falla, se registra en el log.
+    """
+    from html import escape
+
+    from raffles.models import Payment, SiteConfiguration
+
+    payment = Payment.objects.select_related("raffle").get(pk=payment_id)
+    if not payment.buyer_email or payment.status not in (Payment.Status.COMPLETED, Payment.Status.FAILED):
+        return
+    raffle = payment.raffle
+    numbers = ", ".join(f"#{n}" for n in sorted(t.number for t in payment.tickets.all()))
+    page = _site_url(f"/pago/{payment.public_id}/")
+    wa = SiteConfiguration.load().contact_whatsapp
+    contact = f"\nDudas: https://wa.me/{wa}" if wa else ""
+
+    if payment.status == Payment.Status.COMPLETED:
+        subject = f"✅ Pago aprobado — {raffle.name} ({payment.reference_code})"
+        lines = [
+            f"¡Hola {payment.buyer_name}! Confirmamos tu transferencia. Ya estás participando.",
+            "",
+            f"Tu(s) número(s): {numbers}",
+            f"Rifa: {raffle.name}" + (f" (organiza: {raffle.organizer_name})" if raffle.organizer_name else ""),
+            f"Fecha del sorteo: {raffle.draw_date:%d-%m-%Y %H:%M}",
+            f"Monto pagado: {_clp(payment.amount)} CLP",
+            f"Código de compra: {payment.reference_code}",
+            f"Nombre: {payment.buyer_name} · Teléfono: {payment.buyer_phone}",
+            "",
+            f"Ver tu compra: {page}",
+            "¡Mucha suerte!" + contact,
+        ]
+        head, color = "Pago aprobado", "#1f8f74"
+    else:
+        subject = f"❌ Pago no confirmado — {raffle.name} ({payment.reference_code})"
+        lines = [
+            f"Hola {payment.buyer_name}. No pudimos confirmar tu transferencia, así que liberamos tus números ({numbers}).",
+            "",
+            f"Rifa: {raffle.name}",
+            f"Monto esperado: {_clp(payment.amount)} CLP · Código: {payment.reference_code}",
+            "",
+            "Si ya transferiste, escríbenos con tu comprobante para revisarlo." + contact,
+            f"Detalle: {page}",
+        ]
+        head, color = "Pago no confirmado", "#c0392b"
+
+    text = "\n".join(lines)
+    html = (
+        f'<div style="font-family:Arial,sans-serif;max-width:520px;margin:auto;border:1px solid #ddd;border-radius:8px;overflow:hidden">'
+        f'<div style="background:{color};color:#fff;padding:16px 20px;font-size:20px;font-weight:bold">{head}</div>'
+        f'<div style="padding:20px;color:#222;line-height:1.5">'
+        + "".join(f"<p style='margin:6px 0'>{escape(l)}</p>" if l else "<br>" for l in lines)
+        + "</div></div>"
+    )
+    try:
+        send_mail(subject, text, settings.DEFAULT_FROM_EMAIL, [payment.buyer_email], html_message=html)
+        logger.info("Correo de resultado enviado al comprador de %s", payment.reference_code)
+    except Exception:  # noqa: BLE001
+        logger.exception("No se pudo enviar el correo al comprador de %s", payment.reference_code)
+
+
 def notify_proof_submitted(payment_id: int) -> None:
     """Avisa que un comprador dice haber transferido y hay que validar el abono."""
     from raffles.models import Payment
 
     payment = Payment.objects.select_related("raffle").get(pk=payment_id)
     numbers = ", ".join(f"#{n}" for n in sorted(t.number for t in payment.tickets.all()))
-    admin_path = f"/admin/raffles/payment/{payment.pk}/change/"
+    mod_link = _site_url(f"/moderar/pagos/{payment.pk}/")
     _send(
         f"[Rifas] Validar pago {payment.reference_code} — ${payment.amount:,}".replace(",", "."),
         f"Un comprador avisó que transfirió.\n\n"
@@ -47,7 +118,7 @@ def notify_proof_submitted(payment_id: int) -> None:
         f"Monto esperado: ${payment.amount:,} CLP\n".replace(",", ".")
         + f"N° de operación: {payment.buyer_reference}\n"
         f"Comprador: {payment.buyer_name} · {payment.buyer_phone} · {payment.buyer_email or 'sin correo'}\n\n"
-        f"Revisa tu cartola y confirma en el Admin (Pagos > Con comprobante):\n{admin_path}\n",
+        f"👉 Revisa tu cartola y modera con un clic:\n{mod_link}\n",
     )
 
 
