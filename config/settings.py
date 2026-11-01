@@ -143,15 +143,15 @@ REST_FRAMEWORK = {
 # --- Reglas de negocio por defecto (luego se editan en Admin > Configuración del sitio) ---
 TICKET_RESERVATION_MINUTES = 30
 
-# --- Correo: TODOS los correos salen de rifaschile93634@gmail.com ---
+# --- Correo: TODOS los correos salen de chilerifas93634@gmail.com ---
 # Render gratis BLOQUEA el SMTP (puertos 25/465/587), así que allí el envío va por la API de Brevo (HTTPS)
 # con BREVO_API_KEY. Sin esa clave se usa Gmail por SMTP (sirve desde tu PC o en un plan de Render de pago).
 EMAIL_HOST = "smtp.gmail.com"
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
 EMAIL_TIMEOUT = 10
-EMAIL_HOST_USER = "rifaschile93634@gmail.com"
-DEFAULT_FROM_EMAIL = "Rifas Chile <rifaschile93634@gmail.com>"
+EMAIL_HOST_USER = "chilerifas93634@gmail.com"
+DEFAULT_FROM_EMAIL = "Rifas Chile <chilerifas93634@gmail.com>"
 BREVO_API_KEY = env("BREVO_API_KEY", default="")
 ANYMAIL = {"BREVO_API_KEY": BREVO_API_KEY}
 if BREVO_API_KEY:

@@ -26,7 +26,7 @@ CREATE USER raffle_user WITH PASSWORD 'raffle_pass';
 CREATE DATABASE chile_raffle_db OWNER raffle_user;
 ```
 2. **Correo**: en `settings_dev.py` reemplaza `PON_AQUI_TU_CONTRASENA_DE_APLICACION` por la contraseña de aplicación de
-   `rifaschile93634@gmail.com` (Google → Seguridad → Verificación en 2 pasos → Contraseñas de aplicaciones; la contraseña normal no sirve para SMTP).
+   `chilerifas93634@gmail.com` (Google → Seguridad → Verificación en 2 pasos → Contraseñas de aplicaciones; la contraseña normal no sirve para SMTP).
 3. Comandos:
 ```bash
 python manage.py migrate

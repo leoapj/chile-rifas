@@ -23,9 +23,9 @@ Repositorio **privado**. El `.gitignore` ya excluye `settings_dev.py` y cualquie
 
 ## 2. Correos: Brevo
 Render gratis **bloquea el SMTP** (Gmail por SMTP no funciona allí), así que en producción el correo sale por la API de Brevo (HTTPS),
-con remitente `rifaschile93634@gmail.com`.
-1. https://www.brevo.com → regístrate con **rifaschile93634@gmail.com** (plan gratis: 300 correos al día).
-2. *Senders, Domains & Dedicated IPs → Senders → Add a sender*: `rifaschile93634@gmail.com`, y confírmalo con el código que llega a ese correo.
+con remitente `chilerifas93634@gmail.com`.
+1. https://www.brevo.com → regístrate con **chilerifas93634@gmail.com** (plan gratis: 300 correos al día).
+2. *Senders, Domains & Dedicated IPs → Senders → Add a sender*: `chilerifas93634@gmail.com`, y confírmalo con el código que llega a ese correo.
 3. *SMTP & API → API keys → Generate a new API key* → cópiala (`xkeysib-...`). Es tu `BREVO_API_KEY`.
 4. Aviso honesto: como Gmail no permite autenticar su dominio con Brevo, el correo puede llegar con «vía brevo» o caer en **Spam** la primera vez.
    Márcalo como «No es spam». Si te molesta, la alternativa es un plan de pago de Render (permite SMTP de Gmail) o un dominio propio.
